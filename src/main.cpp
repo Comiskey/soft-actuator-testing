@@ -11,19 +11,23 @@
 #include "trajectory.h"
 
 // Variable Declarations
-unsigned int holdStartTime;
+unsigned int lastPressureUpdate;
+unsigned int lastInterpUpdate;
 unsigned long cycleStartTime;
+unsigned long trajStartTime;
 int totalCycles = 0;
-const int holdTime = 3000; // milliseconds
-const bool step = false; // for debugging w/ step function. To be removed in final version
+unsigned long deltaT = 0;
+bool cycleComplete = false;
+const int PRESSURE_READ_DELAY = 10; // milliseconds aka 100Hz
+const int INTERP_CALC_DELAY = 20; // milliseconds aka 50Hz
 
 // PID Controller variables
-double desiredPressure = 25.0; // Example setpoint in PSI for step function
+double desiredPressure; // PSI, set by code automatically based on trajectory
 double deadband = 1; // PSI
 double output = 0.0;
 int outputMin = -1.0;
 int outputMax = 1.0;
-double Kp = 0.12; // Clark's defaults: Kp = 0.1, Ki = 0.001, Kd = 0.0. They do not currenlty work with this set-up
+double Kp = 0.12; // Clark's defaults: Kp = 0.1, Ki = 0.001, Kd = 0.0. Good starting point
 double Ki = 0.001;
 double Kd = 0.0;
 // See autoPID library for more information
@@ -33,48 +37,25 @@ AutoPID valvePID(&SensorPressure, &desiredPressure, &output, outputMin, outputMa
 // WARNING: Ensure the first and last pressures of your trajectory path
 // match so as to ensure smooth transitions between cycles
 // Example step function trajectory
-const float times[] = {100, 2000, 2100}; //milliseconds
-const double pressures[] = {20, 20, 0}; // PSI
+// const float times[] = {0, 100, 2000, 2100, 3000}; //milliseconds
+// const double pressures[] = {0, 20, 20, 0, 0}; // PSI
 
 // Example sinusoidal trajectory
-// const float times[] = {0, 1111, 2222, 3333, 4444, 5555, 6666, 7777, 8888, 10000}; // milliseconds
-// const double pressures[] = {
-//     0, 
-//     20 * sin(M_PI / 9 * 1), 
-//     20 * sin(M_PI / 9 * 2), 
-//     20 * sin(M_PI / 9 * 3), 
-//     20 * sin(M_PI / 9 * 4), 
-//     20 * sin(M_PI / 9 * 5), 
-//     20 * sin(M_PI / 9 * 6), 
-//     20 * sin(M_PI / 9 * 7), 
-//     20 * sin(M_PI / 9 * 8), 
-//     0 }; // PSI
-Trajectory traj(sizeof(times) / sizeof(times[0])); // Do not change
+const float times[] = {0, 1111, 2222, 3333, 4444, 5555, 6666, 7777, 8888, 10000}; // milliseconds
+const double pressures[] = {
+    0, 
+    20 * sin(M_PI / 9 * 1), 
+    20 * sin(M_PI / 9 * 2), 
+    20 * sin(M_PI / 9 * 3), 
+    20 * sin(M_PI / 9 * 4), 
+    20 * sin(M_PI / 9 * 5), 
+    20 * sin(M_PI / 9 * 6), 
+    20 * sin(M_PI / 9 * 7), 
+    20 * sin(M_PI / 9 * 8), 
+    0 }; // PSI
 
-// closed-loop PID actuation control function
-// See helper function definitons in helper files
-void actuate(){
-  valvePID.reset();
-  output = 0; // TOCHECK
-  while (!valvePID.atSetPoint(deadband)) {
-      // statements for debugging
-      Serial.print("Current Pressure: ");
-      Serial.print(SensorPressure);
-      Serial.print(" PSI, PID Output: ");
-      Serial.println(output);
-      // control logic
-      valvePID.run();
-      sendSignalToValves(output);
-      getFilteredSensorPressure();
-      // Sd card logging
-      logPressureData();
-      // anti-integral windup
-      if (valvePID.getIntegral()>1.0){
-        valvePID.setIntegral(0);
-      }
-    }
-  closeValves();
-}
+const int trajSize = sizeof(times) / sizeof(times[0]);
+Trajectory traj(trajSize); // Do not change
 
 void setup() {
   Serial.begin(115200);
@@ -89,10 +70,13 @@ void setup() {
   }
 
   // Initialize trajectory
-  if(!InitializeTrajectory(&traj, times, pressures, sizeof(times) / sizeof(times[0]))){
-    setLCD("Traj Error", "Check Serial");
+  if(!InitializeTrajectory(&traj, times, pressures, trajSize)){
+    setLCD(F("Traj Error"), F("Check Serial"));
     while(1);
   }
+
+  // update LCD with current status
+  setLCD(F("Trajectory Set"), F("Venting..."));
 
   // Initialize valves and pressure sensor
   pinMode(PRESSURE_PIN, OUTPUT);
@@ -101,7 +85,7 @@ void setup() {
   analogReference(DEFAULT);
 
   // Set PID Controller settings
-  valvePID.setTimeStep(100); //milliseconds. Adjust to 50
+  valvePID.setTimeStep(50); //milliseconds. Adjust to 50 
   // Tells AutoPID to not use bang-bang control
   valvePID.setBangBang(0, 0);
 
@@ -109,94 +93,49 @@ void setup() {
   vent();
   delay(2000); // hold for 2 seconds to fully vent
   closeValves(); 
-
   delay(2000);
-  setLCD("Ready", "");
-  delay(2000);
-  setLCD("Setpoint: ", String(desiredPressure));
 
-  // begin test cycle
+  // hold until start button pressed. TO BE IMPLEMENTED
+  setLCD(F("Test Ready:"), F("Press Start"));
+  delay(2000);
+  
+  // begin cycle test
   testStartTime = millis();
 }
 
 void loop() {
-  // update and log sensor pressure variables
-  getFilteredSensorPressure();
-  logPressureData();
-  if (step) { // PID tuning loop
-    // debugging statements. To be removed
-    Serial.println("Starting actuation to setpoint...");
-    Serial.println(desiredPressure);
-    Serial.println(SensorPressure);
-    // Actuate to setpoint
-    actuate();
-    // hold at setpoint for holdTime
-    Serial.println("Reached setpoint. Holding pressure...");
-    holdStartTime = millis();
-    while (millis() - holdStartTime < holdTime) {
-      getFilteredSensorPressure();
-      logPressureData();
-      Serial.print("Current Pressure: ");
-      Serial.println(SensorPressure);
-    }
-    // deflate to ~0 PSI
-    Serial.println("Deflating to ~0 PSI...");
-    vent();
-    while (SensorPressure > 0.5) {
-      // log deflation action
-      getFilteredSensorPressure();
-      logPressureData();
-      // debugging statements. To be removed
-      Serial.print("Current Pressure: ");
-      Serial.println(SensorPressure);
-    }
-    closeValves();
-    // hold at 0 PSI for holdTime to complete
-    // step function cycle
-    holdStartTime = millis();
-    while (millis() - holdStartTime < holdTime) {
-      // log deflation action
-      getFilteredSensorPressure();
-      logPressureData();
-      // debugging statements. To be removed
-      Serial.print("Current Pressure: ");
-      Serial.println(SensorPressure);
-    }
+  // Check if previous cycle has completed
+  if (cycleComplete){
     totalCycles++;
-    // debugging statements. To be removed
-    Serial.print("Cycle completed. Total Cycles: ");
-    Serial.println(totalCycles);
-  } 
-  else { // otherwise, use trajectory based loop
-    // interpolation variables
-    unsigned long deltaT = 0;
-    unsigned long trajStartTime = millis();
-    delay(200); // initial 0.2 sec delay to interpolate a nonzero value
-    // Interpolate over trajectory
-    while (1) {
-      deltaT = millis() - trajStartTime;
-      if (deltaT >= traj.times[traj.maxSize - 1]){
-        break;
-      }
-      desiredPressure = traj.interp(deltaT);
-      // debugging statements. To be removed
-      Serial.print("DeltaT: ");
-      Serial.println(deltaT);
-      Serial.print("Starting actuation to setpoint: ");
-      Serial.println(desiredPressure);
-      Serial.println(SensorPressure);
-      // Actuate to interpolated setpoint
-      actuate();
-    }
-
-    // Once trajectory has been completely followed, 
-    // actuate to last point for smooth transition
-    // to start of next trajectory cycle
-    desiredPressure = pressures[traj.maxSize - 1];
-    actuate();
-    totalCycles++;
-    Serial.print("Cycle completed. Total Cycles: ");
-    Serial.println(totalCycles);
+    setLCD(String(fileName), "Cycles: " + String(totalCycles));
+    valvePID.reset(); // anti-windup call
     traj.reset();
+    trajStartTime = millis();
+    cycleComplete = false;
   }
+  // Log data at 1/PRESSURE_READ_DELAY Hz
+  if ((millis() - lastPressureUpdate) > PRESSURE_READ_DELAY){
+    UpdateFilteredSensorPressure();
+    logData(SensorPressure, valvePID.getPreviousError());
+    lastPressureUpdate = millis();
+  }
+  // interpolate setpoint at 1/INTERP_CALC_DELAY Hz
+  if ((millis() - lastInterpUpdate) > INTERP_CALC_DELAY){
+    // calculate time since start of trajectory cycle
+    deltaT = millis() - trajStartTime;
+    // set pressure to interpolated value if deltaT
+    // still lies within the trajectory's timeframe
+    if (deltaT < times[trajSize - 1]){
+      desiredPressure = traj.interp(deltaT);
+    }
+    // otherwise, flag cycle as complete
+    else{
+      desiredPressure = pressures[trajSize - 1];
+      cycleComplete = true;
+    }
+    lastInterpUpdate = millis();
+  }
+  // control action
+  valvePID.run();
+  sendSignalToValves(output);
 }

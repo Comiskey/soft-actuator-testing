@@ -14,7 +14,7 @@ void getSensorPressure() {
   SensorPressure = (5.0 * SensorReading / 1023.0 - 0.5) * 37.5; // Analog to PSI
 }
 
-void getFilteredSensorPressure() {
+void UpdateFilteredSensorPressure() {
   // Filter the sensor reading with simple low-pass filter
   //previousPressure = SensorPressure;
   getSensorPressure();

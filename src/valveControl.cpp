@@ -57,6 +57,8 @@ void pressurize(){
 
 void vent(){
   openVentValve();
+  openPressureValve();
+  delay(1000);
   closePressureValve();
 }
 

@@ -10,10 +10,10 @@ public:
     void reset();
     void printTrajectory() const;
     bool setTrajectoryPoints(const float* newTimes, const double* newPressures, int size);
-    float interp(float deltaT);
+    float interp(float deltaT); 
+private:
     int maxSize;
     float* times;
-private:
     double* pressures;
     int currentSetPoint;
 };

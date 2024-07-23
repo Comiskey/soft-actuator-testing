@@ -6,6 +6,6 @@ extern double SensorPressure;
 
 void getSensorPressure();
 void displayPressure();
-void getFilteredSensorPressure();
+void UpdateFilteredSensorPressure();
 
 #endif

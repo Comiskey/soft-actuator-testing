@@ -44,7 +44,6 @@ void Trajectory::printTrajectory() const {
 // Function to fill trajectory class instance with new data
 bool Trajectory::setTrajectoryPoints(const float* newTimes, const double* newPressures, int size) {
     if (size > maxSize) {
-        Serial.println("Error: The size of the lists is greater than maxSize.");
         return false;
     }
     for (int i = 0; i < size; ++i) {
@@ -84,9 +83,7 @@ float Trajectory::interp(float deltaT) {
 bool InitializeTrajectory(Trajectory* traj, const float* times, const double* pressures, int size) {
     // Ensure the size of the arrays is less than the maxSize of the trajectory object
     if (!traj->setTrajectoryPoints(times, pressures, size)) {
-        Serial.println("Error: The size of the lists is greater than maxSize of trajectory object");
         return false;
     }
-    Serial.println("Trajectory init complete");
     return true;
 }

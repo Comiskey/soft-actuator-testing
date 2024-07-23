@@ -1,9 +1,11 @@
 #include <Arduino.h>
 #include <SdFat.h>
 #include <SPI.h>
+#include <AutoPID.h>
 #include "sdCardOperations.h"
 #include "lcdDisplay.h"
 #include "analogPressureSensor.h"
+
 
 // SD card variables
 SdFat SD;
@@ -28,11 +30,9 @@ bool initializeSDCard() {
   // THIS COULD BE PART OF THE ISSUE?
   if (!SD.begin(SD_CS_PIN, SD_SCK_MHZ(50))) {
     setLCD(F("SD Init"), F("Failed"));
-    Serial.println(F("SD card initialization failed."));
     return false;
   }
   setLCD(F("Init Success"), F("SD Card Ready"));
-  Serial.println(F("SD card initialized successfully."));
 
   // Create a new file for each new cycle test
   int fileIndex = getNextFileIndex();
@@ -43,7 +43,6 @@ bool initializeSDCard() {
     setLCD(F("File create fail"), F("Check SD Card"));
     return false;
   }
-  Serial.println(F("File created successfully."));
 
   // Open the file for writing
   if (!openFile(fileName)) {
@@ -52,17 +51,18 @@ bool initializeSDCard() {
   }
 
   Serial.println(F("SD card setup complete."));
+  delay(2000); // delay for readability
   return true;
 }
 
 // helper function to create a new file
 bool createFile(const char* fileName) {
   if (dataFile.open(fileName, O_RDWR | O_CREAT | O_AT_END)) {
-    dataFile.println(F("time,pressure"));
+    dataFile.println(F("time,pressure,error"));
     dataFile.close();
     return true;
   } else {
-    Serial.println(F("File creation failed."));
+    setLCD(F("File create fail"), F("Check SD Card"));
     return false;
   }
 }
@@ -72,7 +72,7 @@ bool openFile(const char* fileName) {
   if (dataFile.open(fileName, O_RDWR | O_AT_END)) {
     return true;
   } else {
-    Serial.println(F("File open failed."));
+    setLCD(F("File open fail"), F("Check SD Card"));
     return false;
   }
 }
@@ -98,10 +98,13 @@ int getNextFileIndex() {
   }
 }
 
-// helper function to log pressure data to the SD card
-void logPressureData() {
+// write time, pressure, and error data to the SD card
+void logData(double pressure, double error) {
   dataFile.print(millis() - testStartTime);
   dataFile.print(',');
-  dataFile.println(SensorPressure, 2);
-  dataFile.sync();
+  dataFile.print(pressure, 2);
+  dataFile.print(',');
+  dataFile.println(error, 2);
+  dataFile.sync(); // Ensure data is written to the file
 }
+

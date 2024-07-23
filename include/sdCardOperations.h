@@ -8,9 +8,10 @@
 extern SdFat SD;
 extern SdFile dataFile;
 extern unsigned long testStartTime;
+extern char fileName[20];
 
 bool initializeSDCard();
-void logPressureData();
+void logData(double pressure, double error);
 void closeSD();
 bool createFile(const char* fileName);
 bool openFile(const char* fileName);
