@@ -4,7 +4,8 @@
 // Define the sensor pin
 const int SENSOR_PIN = A7;
 double SensorPressure;
-const double filterAlpha = 0.1;
+double previousPressure;
+const double filterAlpha = 0.0;
 
 void getSensorPressure() {
   int SensorReading = analogRead(SENSOR_PIN);
@@ -15,10 +16,10 @@ void getSensorPressure() {
 }
 
 void UpdateFilteredSensorPressure() {
-  // Filter the sensor reading with simple low-pass filter
-  //previousPressure = SensorPressure;
+  // simple estimated moving average filter to reduce signal noise
+  previousPressure = SensorPressure;
   getSensorPressure();
-  SensorPressure = filterAlpha * SensorPressure + (1.0 - filterAlpha) * SensorPressure; //replace
+  SensorPressure = (1.0 - filterAlpha) * SensorPressure + filterAlpha  * previousPressure;
 }
 
 void displayPressure() {

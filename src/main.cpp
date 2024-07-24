@@ -19,7 +19,7 @@ int totalCycles = 0;
 unsigned long deltaT = 0;
 bool cycleComplete = false;
 const int PRESSURE_READ_DELAY = 10; // milliseconds aka 100Hz
-const int INTERP_CALC_DELAY = 20; // milliseconds aka 50Hz
+const int INTERP_CALC_DELAY = 50; // milliseconds aka 20Hz
 
 // PID Controller variables
 double desiredPressure; // PSI, set by code automatically based on trajectory
@@ -27,7 +27,7 @@ double deadband = 1; // PSI
 double output = 0.0;
 int outputMin = -1.0;
 int outputMax = 1.0;
-double Kp = 0.12; // Clark's defaults: Kp = 0.1, Ki = 0.001, Kd = 0.0. Good starting point
+double Kp = 0.1; // Clark's defaults: Kp = 0.1, Ki = 0.001, Kd = 0.0. Good starting point
 double Ki = 0.001;
 double Kd = 0.0;
 // See autoPID library for more information
@@ -37,22 +37,25 @@ AutoPID valvePID(&SensorPressure, &desiredPressure, &output, outputMin, outputMa
 // WARNING: Ensure the first and last pressures of your trajectory path
 // match so as to ensure smooth transitions between cycles
 // Example step function trajectory
-// const float times[] = {0, 100, 2000, 2100, 3000}; //milliseconds
-// const double pressures[] = {0, 20, 20, 0, 0}; // PSI
+const float times[] = {0, 100, 2000, 2100, 3000}; //milliseconds
+const double pressures[] = {0, 20, 20, 0, 0}; // PSI
 
 // Example sinusoidal trajectory
-const float times[] = {0, 1111, 2222, 3333, 4444, 5555, 6666, 7777, 8888, 10000}; // milliseconds
-const double pressures[] = {
-    0, 
-    20 * sin(M_PI / 9 * 1), 
-    20 * sin(M_PI / 9 * 2), 
-    20 * sin(M_PI / 9 * 3), 
-    20 * sin(M_PI / 9 * 4), 
-    20 * sin(M_PI / 9 * 5), 
-    20 * sin(M_PI / 9 * 6), 
-    20 * sin(M_PI / 9 * 7), 
-    20 * sin(M_PI / 9 * 8), 
-    0 }; // PSI
+// const float times[] = {0, 1111, 2222, 3333, 4444, 5555, 6666, 7777, 8888, 10000}; // milliseconds
+// const double pressures[] = {
+//     0, 
+//     20 * sin(M_PI / 9 * 1), 
+//     20 * sin(M_PI / 9 * 2), 
+//     20 * sin(M_PI / 9 * 3), 
+//     20 * sin(M_PI / 9 * 4), 
+//     20 * sin(M_PI / 9 * 5), 
+//     20 * sin(M_PI / 9 * 6), 
+//     20 * sin(M_PI / 9 * 7), 
+//     20 * sin(M_PI / 9 * 8), 
+//     0 }; // PSI
+
+// Example ramp (burst) trajectory
+// TODO
 
 const int trajSize = sizeof(times) / sizeof(times[0]);
 Trajectory traj(trajSize); // Do not change
@@ -85,7 +88,7 @@ void setup() {
   analogReference(DEFAULT);
 
   // Set PID Controller settings
-  valvePID.setTimeStep(50); //milliseconds. Adjust to 50 
+  valvePID.setTimeStep(50); //milliseconds.
   // Tells AutoPID to not use bang-bang control
   valvePID.setBangBang(0, 0);
 
