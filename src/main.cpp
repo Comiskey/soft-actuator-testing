@@ -18,12 +18,13 @@ unsigned long trajStartTime;
 int totalCycles = 0;
 unsigned long deltaT = 0;
 bool cycleComplete = false;
+bool testOver = false;
 const int PRESSURE_READ_DELAY = 10; // milliseconds aka 100Hz
 const int INTERP_CALC_DELAY = 50; // milliseconds aka 20Hz
 
 // PID Controller variables
 double desiredPressure; // PSI, set by code automatically based on trajectory
-double deadband = 1; // PSI
+double threshold = 1; // PSI
 double output = 0.0;
 int outputMin = -1.0;
 int outputMax = 1.0;
@@ -104,9 +105,17 @@ void setup() {
   
   // begin cycle test
   testStartTime = millis();
+  traj.reset();
 }
 
 void loop() {
+  // Check that controller isn't failing to follow the trajectory
+  if(traj.failingToFollow(SensorPressure, deltaT, threshold)){
+    closeValves();
+    valvePID.stop();
+    setLCD(F("Test Ended"), "Cycles: " + String(totalCycles));
+    exit(0);
+  }
   // Check if previous cycle has completed
   if (cycleComplete){
     totalCycles++;
@@ -142,3 +151,6 @@ void loop() {
   valvePID.run();
   sendSignalToValves(output);
 }
+
+
+

@@ -9,12 +9,15 @@
     pressures: array of pressure values
     maxSize: maximum size of the arrays as defined by the user in main.cpp
     currentSetPoint: counter to keep track of the current setpoint in the trajectory
+    timeOut: time out value to prevent the system from hanging if the trajectory is not completed
 */
 
 // Constructor to initialize the size of the arrays and the counter
 Trajectory::Trajectory(int size) : maxSize(size), currentSetPoint(0) {
     times = new float[size];
     pressures = new double[size];
+    timeoutDuration = 2000; // 2 seconds
+    lastWithinThresholdTime = millis();
 }
 
 // Destructor to free allocated memory
@@ -27,21 +30,11 @@ Trajectory::~Trajectory() {
 // once a cycle is completed
 void Trajectory::reset() {
     currentSetPoint = 1;
-}
-
-// Function to print the trajectory data
-// for debugging purposes
-void Trajectory::printTrajectory() const {
-    Serial.println("Trajectory Data:");
-    for (int i = 0; i < currentSetPoint; ++i) {
-        Serial.print("Time: ");
-        Serial.print(times[i]);
-        Serial.print(", Pressure: ");
-        Serial.println(pressures[i]);
-    }
+    lastWithinThresholdTime = millis();
 }
 
 // Function to fill trajectory class instance with new data
+// and to set timeOut value
 bool Trajectory::setTrajectoryPoints(const float* newTimes, const double* newPressures, int size) {
     if (size > maxSize) {
         return false;
@@ -78,6 +71,36 @@ float Trajectory::interp(float deltaT) {
     float factor = (deltaT - t1) / (t2 - t1);
     return p1 + factor * (p2 - p1);  
 }
+
+    // Function to check if the system failing to follow the trajectory
+    bool Trajectory::failingToFollow(double currentPressure, float deltaT, double threshold) {
+        double expectedPressure = pressures[currentSetPoint];
+        // Check if current pressure is too far from the non-zero setpoint
+        if (abs(expectedPressure - currentPressure) > threshold && expectedPressure != 0.0) {
+            // If it is, check if how long since the last time pressure was within threshold
+            if ((millis() - lastWithinThresholdTime) > timeoutDuration){
+                // if it has been too long, declare failure to follow trajectory
+                return true;
+            }
+        } else { // if pressure is within threshold, update lastWithinThresholdTime
+            lastWithinThresholdTime = millis();
+        }
+        // if both failure criterion aren't met, return false
+        return false;
+    }
+
+    // Function to print the trajectory data
+    // for debugging purposes
+    void Trajectory::printTrajectory() const {
+        Serial.println("Trajectory Data:");
+        for (int i = 0; i < currentSetPoint; ++i) {
+            Serial.print("Time: ");
+            Serial.print(times[i]);
+            Serial.print(", Pressure: ");
+            Serial.println(pressures[i]);
+        }
+    }
+
 
 // Initialize the trajectory object
 bool InitializeTrajectory(Trajectory* traj, const float* times, const double* pressures, int size) {

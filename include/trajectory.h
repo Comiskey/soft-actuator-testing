@@ -11,11 +11,14 @@ public:
     void printTrajectory() const;
     bool setTrajectoryPoints(const float* newTimes, const double* newPressures, int size);
     float interp(float deltaT); 
+    bool failingToFollow(double actualPressure, float deltaT, double threshold);
 private:
     int maxSize;
     float* times;
     double* pressures;
     int currentSetPoint;
+    unsigned long lastWithinThresholdTime;
+    unsigned long timeoutDuration;
 };
 
 bool InitializeTrajectory(Trajectory* traj, const float* times, const double* pressures, int size);
