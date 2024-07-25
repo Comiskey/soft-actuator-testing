@@ -1,17 +1,9 @@
 #include <Arduino.h>
 #include "valveControl.h"
+#include "adjustableSettings.h"
 
-const int PRESSURE_PIN = 6;
-const int VENT_PIN = 5;
-
-uint8_t analogPressureMin = 146;
-uint8_t analogVentMin = 156;
-
-uint8_t analogPressureMax = 170;
-uint8_t analogVentMax = 180;
-
-uint8_t analogPressureRange = analogPressureMax - analogPressureMin;
-uint8_t analogVentRange = analogVentMax - analogVentMin;
+const uint8_t ANALOG_PRESSURE_RANGE = ANALOG_PRESSURE_MAX - ANALOG_PRESSURE_MIN;
+const uint8_t ANALOG_VENT_RANGE = ANALOG_VENT_MAX - ANALOG_VENT_MIN;
 
 // helper mapping function
 float mapFloat(float x, float in_min, float in_max, float out_min, float out_max) {
@@ -57,24 +49,21 @@ void pressurize(){
 
 void vent(){
   openVentValve();
-  openPressureValve();
-  delay(1000);
-  closePressureValve();
 }
 
 // analog write to both valves
 void pressurizeProportional(float controlSignal){
   writeVentValve(0);
-  float temp = mapFloat(controlSignal, 0.0, 1.0, 0.0, analogPressureRange);
-  int setpoint = constrain(temp+analogPressureMin, 0, analogPressureMax);
+  float temp = mapFloat(controlSignal, 0.0, 1.0, 0.0, ANALOG_PRESSURE_RANGE);
+  int setpoint = constrain(temp+ANALOG_PRESSURE_MIN, 0, ANALOG_PRESSURE_MAX);
   writePressureValve(setpoint);
   
 }
 
 void ventProportional(float controlSignal){
   writePressureValve(0);
-  float temp = mapFloat(controlSignal, 0.0, 1.0, 0.0, analogVentRange);
-  int setpoint = constrain(temp+analogVentMin, 0, analogVentMax);
+  float temp = mapFloat(controlSignal, 0.0, 1.0, 0.0, ANALOG_VENT_RANGE);
+  int setpoint = constrain(temp+ANALOG_VENT_MIN, 0, ANALOG_VENT_MAX);
   writeVentValve(setpoint);
 }
 

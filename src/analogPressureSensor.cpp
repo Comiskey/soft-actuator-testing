@@ -1,11 +1,10 @@
 #include <Arduino.h>
 #include "analogPressureSensor.h"
+#include "adjustableSettings.h"
 
 // Define the sensor pin
-const int SENSOR_PIN = A7;
 double SensorPressure;
 double previousPressure;
-const double filterAlpha = 0.0;
 
 void getSensorPressure() {
   int SensorReading = analogRead(SENSOR_PIN);
@@ -19,7 +18,7 @@ void UpdateFilteredSensorPressure() {
   // simple estimated moving average filter to reduce signal noise
   previousPressure = SensorPressure;
   getSensorPressure();
-  SensorPressure = (1.0 - filterAlpha) * SensorPressure + filterAlpha  * previousPressure;
+  SensorPressure = (1.0 - FILTER_ALPHA) * SensorPressure + FILTER_ALPHA  * previousPressure;
 }
 
 void displayPressure() {

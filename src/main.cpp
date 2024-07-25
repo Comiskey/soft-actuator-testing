@@ -4,62 +4,35 @@
 #include <AutoPID.h>
 
 // Custom Inclusions
+#include "adjustableSettings.h"
 #include "sdCardOperations.h"
 #include "analogPressureSensor.h"
 #include "valveControl.h"
 #include "lcdDisplay.h"
 #include "trajectory.h"
 
-// Variable Declarations
-unsigned int lastPressureUpdate;
-unsigned int lastInterpUpdate;
-unsigned long cycleStartTime;
-unsigned long trajStartTime;
+// Declare dynamic variables
+float lastPressureUpdate; // milliseconds
+float lastInterpUpdate; // milliseconds
+float cycleStartTime; // milliseconds
+float trajStartTime; // milliseconds
 int totalCycles = 0;
 unsigned long deltaT = 0;
 bool cycleComplete = false;
-bool testOver = false;
-const int PRESSURE_READ_DELAY = 10; // milliseconds aka 100Hz
-const int INTERP_CALC_DELAY = 50; // milliseconds aka 20Hz
+double desiredPressure; // PSI
+double output;
 
-// PID Controller variables
-double desiredPressure; // PSI, set by code automatically based on trajectory
-double threshold = 1; // PSI
-double output = 0.0;
-int outputMin = -1.0;
-int outputMax = 1.0;
-double Kp = 0.1; // Clark's defaults: Kp = 0.1, Ki = 0.001, Kd = 0.0. Good starting point
-double Ki = 0.001;
-double Kd = 0.0;
-// See autoPID library for more information
-AutoPID valvePID(&SensorPressure, &desiredPressure, &output, outputMin, outputMax, Kp, Ki, Kd);
+// Initialize controller and trajectory objects
+AutoPID valvePID(&SensorPressure, &desiredPressure, &output, OUTPUT_MIN, OUTPUT_MAX, KP, KI, KD);
+Trajectory traj(TRAJ_SIZE);
 
-// Trajectory variables
-// WARNING: Ensure the first and last pressures of your trajectory path
-// match so as to ensure smooth transitions between cycles
-// Example step function trajectory
-const float times[] = {0, 100, 2000, 2100, 3000}; //milliseconds
-const double pressures[] = {0, 20, 20, 0, 0}; // PSI
-
-// Example sinusoidal trajectory
-// const float times[] = {0, 1111, 2222, 3333, 4444, 5555, 6666, 7777, 8888, 10000}; // milliseconds
-// const double pressures[] = {
-//     0, 
-//     20 * sin(M_PI / 9 * 1), 
-//     20 * sin(M_PI / 9 * 2), 
-//     20 * sin(M_PI / 9 * 3), 
-//     20 * sin(M_PI / 9 * 4), 
-//     20 * sin(M_PI / 9 * 5), 
-//     20 * sin(M_PI / 9 * 6), 
-//     20 * sin(M_PI / 9 * 7), 
-//     20 * sin(M_PI / 9 * 8), 
-//     0 }; // PSI
-
-// Example ramp (burst) trajectory
-// TODO
-
-const int trajSize = sizeof(times) / sizeof(times[0]);
-Trajectory traj(trajSize); // Do not change
+// helper function to display test end condition, # of cycles and exit
+void endTest(String reason, int cycles){
+  closeValves();
+  valvePID.stop();
+  setLCD(reason, "Cycles: " + String(totalCycles));
+  exit(0);
+}
 
 void setup() {
   Serial.begin(115200);
@@ -74,7 +47,7 @@ void setup() {
   }
 
   // Initialize trajectory
-  if(!InitializeTrajectory(&traj, times, pressures, trajSize)){
+  if(!InitializeTrajectory(&traj, TIMES, PRESSURES, TRAJ_SIZE)){
     setLCD(F("Traj Error"), F("Check Serial"));
     while(1);
   }
@@ -87,20 +60,26 @@ void setup() {
   pinMode(VENT_PIN, OUTPUT);
   pinMode(SENSOR_PIN, INPUT);
   analogReference(DEFAULT);
+  pinMode(START_BUTTON_PIN, INPUT_PULLUP);
+  pinMode(STOP_BUTTON_PIN, INPUT_PULLUP);
 
-  // Set PID Controller settings
-  valvePID.setTimeStep(50); //milliseconds.
+  // vent any air in the system
+  closeValves();
+  delay(20); // 20 millisecond delay between signal and mechanical valve response
+  openVentValve();
+  delay(5000); // hold for 5 seconds to fully vent
+  setLCD(F("Venting..."), F("Please wait"));
+  closeValves(); 
+
+   // Set PID Controller settings
+  valvePID.setTimeStep(CONTROLLER_DELAY); //milliseconds.
   // Tells AutoPID to not use bang-bang control
   valvePID.setBangBang(0, 0);
 
-  // vent any air in the system
-  vent();
-  delay(2000); // hold for 2 seconds to fully vent
-  closeValves(); 
-  delay(2000);
-
-  // hold until start button pressed. TO BE IMPLEMENTED
-  setLCD(F("Test Ready:"), F("Press Start"));
+  // hold until start button pressed.
+  while(digitalRead(START_BUTTON_PIN) == HIGH){
+    setLCD(F("Press Start"), F("to Begin Test"));
+  }
   delay(2000);
   
   // begin cycle test
@@ -109,12 +88,17 @@ void setup() {
 }
 
 void loop() {
+  // Stop test if stop button is pressed
+  if (digitalRead(STOP_BUTTON_PIN) == LOW){
+    endTest(F("Stop Pressed"), totalCycles);
+  }
+  // Ensure that pressure does not exceed maximum
+  if (PRESSURE_MAX < SensorPressure){
+    endTest(F("Overpressure"), totalCycles);
+  }
   // Check that controller isn't failing to follow the trajectory
-  if(traj.failingToFollow(SensorPressure, deltaT, threshold)){
-    closeValves();
-    valvePID.stop();
-    setLCD(F("Test Ended"), "Cycles: " + String(totalCycles));
-    exit(0);
+  if(traj.failingToFollow(SensorPressure, deltaT, THRESHOLD)){
+    endTest(F("Traj Follow Fail"), totalCycles);
   }
   // Check if previous cycle has completed
   if (cycleComplete){
@@ -128,7 +112,7 @@ void loop() {
   // Log data at 1/PRESSURE_READ_DELAY Hz
   if ((millis() - lastPressureUpdate) > PRESSURE_READ_DELAY){
     UpdateFilteredSensorPressure();
-    logData(SensorPressure, valvePID.getPreviousError());
+    logData(SensorPressure, valvePID.getPreviousError(), valvePID.getIntegral());
     lastPressureUpdate = millis();
   }
   // interpolate setpoint at 1/INTERP_CALC_DELAY Hz
@@ -137,12 +121,12 @@ void loop() {
     deltaT = millis() - trajStartTime;
     // set pressure to interpolated value if deltaT
     // still lies within the trajectory's timeframe
-    if (deltaT < times[trajSize - 1]){
+    if (deltaT < TIMES[TRAJ_SIZE - 1]){
       desiredPressure = traj.interp(deltaT);
     }
     // otherwise, flag cycle as complete
     else{
-      desiredPressure = pressures[trajSize - 1];
+      desiredPressure = PRESSURES[TRAJ_SIZE - 1];
       cycleComplete = true;
     }
     lastInterpUpdate = millis();

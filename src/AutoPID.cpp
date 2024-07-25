@@ -1,4 +1,5 @@
 #include "AutoPID.h"
+#include "adjustableSettings.h"
 
 AutoPID::AutoPID(double *input, double *setpoint, double *output, double outputMin, double outputMax,
                  double Kp, double Ki, double Kd) {

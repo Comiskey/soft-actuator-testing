@@ -1,9 +1,6 @@
 #ifndef VALVE_CONTROL_H
 #define VALVE_CONTROL_H
 
-extern const int PRESSURE_PIN;
-extern const int VENT_PIN;
-
 // Pressure valve control functions
 void writePressureValve(int pwmValue);
 void openPressureValve();

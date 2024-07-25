@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include "lcdDisplay.h"
+#include "adjustableSettings.h"
 
 // Define LCD pins
 LiquidCrystal lcd(10, 9, 8, 7, 3, 2);

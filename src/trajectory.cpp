@@ -1,4 +1,5 @@
 #include "trajectory.h"
+#include "adjustableSettings.h"
 /*
     * Trajectory class implementation
     This class is used to store user-generated trajectory data and interpolate 

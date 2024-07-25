@@ -5,6 +5,7 @@
 #include "sdCardOperations.h"
 #include "lcdDisplay.h"
 #include "analogPressureSensor.h"
+#include "adjustableSettings.h"
 
 
 // SD card variables
@@ -32,7 +33,7 @@ bool initializeSDCard() {
     setLCD(F("SD Init"), F("Failed"));
     return false;
   }
-  setLCD(F("Init Success"), F("SD Card Ready"));
+  setLCD(F("SD Initialized"), F("Prepping File..."));
 
   // Create a new file for each new cycle test
   int fileIndex = getNextFileIndex();
@@ -58,7 +59,7 @@ bool initializeSDCard() {
 // helper function to create a new file
 bool createFile(const char* fileName) {
   if (dataFile.open(fileName, O_RDWR | O_CREAT | O_AT_END)) {
-    dataFile.println(F("time,pressure,error"));
+    dataFile.println(F("time,pressure,error,integral"));
     dataFile.close();
     return true;
   } else {
@@ -99,12 +100,14 @@ int getNextFileIndex() {
 }
 
 // write time, pressure, and error data to the SD card
-void logData(double pressure, double error) {
+void logData(double pressure, double error, double integral) {
   dataFile.print(millis() - testStartTime);
   dataFile.print(',');
   dataFile.print(pressure, 2);
   dataFile.print(',');
-  dataFile.println(error, 2);
+  dataFile.print(error, 2);
+  dataFile.print(',');
+  dataFile.println(integral, 2);
   dataFile.sync(); // Ensure data is written to the file
 }
 
