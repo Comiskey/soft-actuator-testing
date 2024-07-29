@@ -1,11 +1,10 @@
 #ifndef SETTINGS_H
 #define SETTINGS_H
 
-// Start and stop button pins
+// Pin definitions
 extern const int START_BUTTON_PIN; 
 extern const int STOP_BUTTON_PIN;
-
-// Pnuematic valve pins
+extern const int SENSOR_PIN;
 extern const int PRESSURE_PIN;
 extern const int VENT_PIN;
 
@@ -21,7 +20,6 @@ extern const int INTERP_CALC_DELAY;
 extern const int CONTROLLER_DELAY; 
 
 // Pressure sensor variables
-extern const int SENSOR_PIN;
 extern const double FILTER_ALPHA;
 extern const int PRESSURE_MAX;
 

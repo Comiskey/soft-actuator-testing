@@ -59,7 +59,7 @@ bool initializeSDCard() {
 // helper function to create a new file
 bool createFile(const char* fileName) {
   if (dataFile.open(fileName, O_RDWR | O_CREAT | O_AT_END)) {
-    dataFile.println(F("time,pressure,error,integral"));
+    dataFile.println(F("time,pressure,error,integral,cycle_start"));
     dataFile.close();
     return true;
   } else {
@@ -100,14 +100,21 @@ int getNextFileIndex() {
 }
 
 // write time, pressure, and error data to the SD card
-void logData(double pressure, double error, double integral) {
+void logData(double pressure, double error, double integral, bool cycleComplete) {
   dataFile.print(millis() - testStartTime);
   dataFile.print(',');
   dataFile.print(pressure, 2);
   dataFile.print(',');
   dataFile.print(error, 2);
   dataFile.print(',');
-  dataFile.println(integral, 2);
+  dataFile.print(integral, 2);
+  dataFile.print(',');
+  if (cycleComplete) {
+    dataFile.println("1");
+  }
+  else{
+    dataFile.println("0");
+  }
   dataFile.sync(); // Ensure data is written to the file
 }
 

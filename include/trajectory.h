@@ -8,9 +8,9 @@ public:
     Trajectory(int size);
     ~Trajectory();
     void reset();
-    void printTrajectory() const;
+    bool isFinished(unsigned long deltaT) const;
     bool setTrajectoryPoints(const float* newTimes, const double* newPressures, int size);
-    float interp(float deltaT); 
+    float interp(unsigned long deltaT); 
     bool failingToFollow(double actualPressure, float deltaT, double threshold);
 private:
     int maxSize;
