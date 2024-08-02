@@ -15,7 +15,7 @@ extern const int ANALOG_VENT_MIN;
 extern const int ANALOG_VENT_MAX;
 
 // Frequency variables
-extern const int PRESSURE_READ_DELAY;
+extern const double PRESSURE_READ_DELAY;
 extern const int INTERP_CALC_DELAY;
 extern const int CONTROLLER_DELAY; 
 

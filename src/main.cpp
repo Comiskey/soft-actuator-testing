@@ -18,7 +18,7 @@ float cycleStartTime; // milliseconds
 float trajStartTime; // milliseconds
 int totalCycles = 0;
 unsigned long deltaT;
-bool cycleComplete = true;
+bool cycleComplete = false;
 double desiredPressure; // PSI
 double output;
 
@@ -62,6 +62,7 @@ void setup() {
   if (!initializeSDCard()) {
     while (1);
   }
+  delay(100);
 
   // Initialize trajectory
   if(!InitializeTrajectory(&traj, TIMES, PRESSURES, TRAJ_SIZE)){
@@ -75,13 +76,15 @@ void setup() {
   valvePID.setBangBang(0, 0);
 
   // hold until start button pressed.
+  setLCD(F("Press Start"), F("to Begin Test"));
   while(digitalRead(START_BUTTON_PIN) == HIGH){
-    setLCD(F("Press Start"), F("to Begin Test"));
+    // wait for start button press
   }
   delay(2000);
-  
   // begin cycle test
+  setLCD(String(fileName), "Cycles: " + String(totalCycles));
   testStartTime = millis();
+  trajStartTime = millis();
   traj.reset();
 }
 
@@ -96,7 +99,7 @@ void loop() {
     endTest(F("Overpressure"), totalCycles);
   }
   // Check that controller isn't failing to follow the trajectory
-  if(traj.failingToFollow(SensorPressure, deltaT, THRESHOLD)){
+  if(traj.failingToFollow(SensorPressure, deltaT, (0.5*desiredPressure))){
     endTest(F("Traj Follow Fail"), totalCycles);
   }
   // Check if cycle is complete
@@ -122,7 +125,6 @@ void loop() {
     deltaT = millis() - trajStartTime;
     // check if trajectory is finished
     if (traj.isFinished(deltaT)){
-      
       desiredPressure = PRESSURES[TRAJ_SIZE - 1];
       cycleComplete = true;
     }

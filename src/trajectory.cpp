@@ -44,6 +44,7 @@ bool Trajectory::setTrajectoryPoints(const float* newTimes, const double* newPre
         times[i] = newTimes[i];
         pressures[i] = newPressures[i];
     }
+    updateTimeoutDuration();
     return true;
 }
 
@@ -94,6 +95,17 @@ bool Trajectory::failingToFollow(double currentPressure, float deltaT, double th
 // for debugging purposes
 bool Trajectory::isFinished(unsigned long deltaT) const {
     return deltaT > times[maxSize - 1];
+}
+
+// Function to update the timeout duration if greater than the default
+void Trajectory::updateTimeoutDuration() {
+    timeoutDuration = 2000; // Default timeout duration
+    for (int i = 1; i < maxSize; ++i) {
+        float interval = times[i] - times[i - 1];
+        if (interval > timeoutDuration) {
+            timeoutDuration = interval + 500;
+        }
+    }
 }
 
 // Initialize the trajectory object

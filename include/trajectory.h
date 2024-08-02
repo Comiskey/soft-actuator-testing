@@ -13,6 +13,7 @@ public:
     float interp(unsigned long deltaT); 
     bool failingToFollow(double actualPressure, float deltaT, double threshold);
 private:
+    void updateTimeoutDuration();
     int maxSize;
     float* times;
     double* pressures;
