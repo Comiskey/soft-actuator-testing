@@ -10,4 +10,4 @@ The main control loop can be found in main.cpp, with supporting functions and va
 all other files. If building your own test stand to run this program, be sure to adjust the
 pinout values in the various supporting cpp files.
 
---Evan Comiskey, 2024/04, MIT Fabrication-Integrated Design Lab, comiskey@mit.edu
+--Evan Comiskey, 2024/07, MIT Fabrication-Integrated Design Lab, comiskey@mit.edu

@@ -99,7 +99,7 @@ void loop() {
     endTest(F("Overpressure"), totalCycles);
   }
   // Check that controller isn't failing to follow the trajectory
-  if(traj.failingToFollow(SensorPressure, deltaT, (0.5*desiredPressure))){
+  if(traj.failingToFollow(SensorPressure, deltaT, THRESHOLD)){
     endTest(F("Traj Follow Fail"), totalCycles);
   }
   // Check if cycle is complete
